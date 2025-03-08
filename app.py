@@ -21,7 +21,7 @@ CSV_FILE = f"{OUTPUT_DIR}/{FORM_ID}_submissions.csv"
 
 
 def download_csv():
-    """Download ODK submissions as a CSV file using token authentication."""
+    """Download submissions as a CSV file using token authentication."""
     url = f"{ODK_SERVER}/v1/projects/{PROJECT_ID}/forms/{FORM_ID}/submissions.csv"
     headers = {"Authorization": f"Bearer {ODK_TOKEN}"}
     try:
@@ -51,7 +51,7 @@ def load_data():
 
 
 # ----------------- Streamlit App Interface -----------------
-st.title("ODK Data Visualization and Summary")
+st.title("Evaluating Mentorship Oversight: A Comprehensive Data Analysis")
 
 # Option for manual refresh
 if st.button("Download Latest CSV"):
