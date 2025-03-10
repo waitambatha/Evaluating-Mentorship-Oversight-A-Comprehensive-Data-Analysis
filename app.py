@@ -84,26 +84,57 @@ def load_data():
     return pd.DataFrame()
 
 # ----------------- Streamlit App Interface -----------------
-st.title("Evaluating Mentorship Oversight: A Comprehensive Data Analysis")
 
-# Summary at the top
+# Sidebar Filters
+st.sidebar.header("Filter Data")
+data = load_data()
+if not data.empty:
+    columns = st.sidebar.multiselect("Select Columns to Display", data.columns.tolist(), default=data.columns[:5].tolist())
+    filtered_data = data[columns]
+else:
+    filtered_data = data
+
+# Filterable Summary Section
+st.title("Evaluating Mentorship Oversight: A Comprehensive Data Analysis")
+st.write("### Filterable Column Summary")
+
+if filtered_data.empty:
+    st.write("No data loaded yet. Please download the latest CSV to see the summary.")
+else:
+    selected_column = st.selectbox("Select a Column for Summary", filtered_data.columns)
+    if selected_column:
+        st.write(f"#### Summary of {selected_column}")
+        st.write(f"- **Unique Values:** {filtered_data[selected_column].nunique()}")
+        st.write(f"- **Most Common Value:** {filtered_data[selected_column].mode()[0] if not filtered_data[selected_column].mode().empty else 'N/A'}")
+        st.write(f"- **Missing Values:** {filtered_data[selected_column].isna().sum()}")
+        st.write(f"- **Data Type:** {filtered_data[selected_column].dtype}")
+
+        if filtered_data[selected_column].dtype == 'object':
+            st.write("- **Frequent Values:**")
+            st.write(filtered_data[selected_column].value_counts().head())
+        else:
+            st.write(f"- **Mean:** {filtered_data[selected_column].mean():.2f}")
+            st.write(f"- **Median:** {filtered_data[selected_column].median():.2f}")
+            st.write(f"- **Standard Deviation:** {filtered_data[selected_column].std():.2f}")
+
+# Existing Summary Overview
 st.header("Summary Overview")
-if data.empty:
+if filtered_data.empty:
     st.write("No data loaded yet. Please download the latest CSV to see the summary.")
 else:
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Total Submissions", data.shape[0])
+        st.metric("Total Submissions", filtered_data.shape[0])
     with col2:
-        numeric_cols = data.select_dtypes(include="number").columns.tolist()
+        numeric_cols = filtered_data.select_dtypes(include="number").columns.tolist()
         st.metric("Numeric Columns", len(numeric_cols))
     with col3:
-        categorical_cols = data.select_dtypes(include="object").columns.tolist()
+        categorical_cols = filtered_data.select_dtypes(include="object").columns.tolist()
         st.metric("Categorical Columns", len(categorical_cols))
-    if "submission_date" in data.columns:
+    if "submission_date" in filtered_data.columns:
         try:
-            data["submission_date"] = pd.to_datetime(data["submission_date"], errors="coerce")
-            date_range = f"{data['submission_date'].min().date()} to {data['submission_date'].max().date()}"
+            filtered_data["submission_date"] = pd.to_datetime(filtered_data["submission_date"], errors="coerce")
+            date_range = f"{filtered_data['submission_date'].min().date()} to {filtered_data['submission_date'].max().date()}"
             st.write(f"Date Range: {date_range}")
         except Exception:
             st.write("Date Range: Not available")
@@ -111,21 +142,19 @@ else:
 if st.button("Download Latest CSV"):
     download_csv()
 
-data = load_data()
-
-if data.empty:
+if filtered_data.empty:
     st.warning("No data available. Click the button above to fetch the latest CSV.")
 else:
     st.header("Tables")
     st.subheader("Full Data")
-    st.dataframe(data, height=300)
+    st.dataframe(filtered_data, height=300)
 
     # Summary Table
     st.subheader("Summary")
     if numeric_cols:
-        summary = data[numeric_cols].describe().T.reset_index().rename(columns={"index": "Column"})
+        summary = filtered_data[numeric_cols].describe().T.reset_index().rename(columns={"index": "Column"})
     else:
-        summary = pd.DataFrame({"Metric": ["Total Submissions"], "Value": [data.shape[0]]})
+        summary = pd.DataFrame({"Metric": ["Total Submissions"], "Value": [filtered_data.shape[0]]})
     st.dataframe(summary, height=300)
 
     # ----------------- Interactive Charts -----------------
@@ -135,17 +164,17 @@ else:
     st.subheader("Bar Chart")
     if numeric_cols:
         selected_bar = st.selectbox("Select a numeric column for Bar Chart", numeric_cols, key="bar")
-        bar_data = data[selected_bar].value_counts().reset_index()
+        bar_data = filtered_data[selected_bar].value_counts().reset_index()
         bar_data.columns = [selected_bar, "Count"]
         fig_bar = px.bar(bar_data, x=selected_bar, y="Count", title=f"Bar Chart of {selected_bar}")
         st.plotly_chart(fig_bar)
 
     # 2. Line Chart: Trend over time if a date column exists
     st.subheader("Line Chart")
-    if "submission_date" in data.columns:
+    if "submission_date" in filtered_data.columns:
         try:
-            data["submission_date"] = pd.to_datetime(data["submission_date"], errors="coerce")
-            line_data = data.groupby(data["submission_date"].dt.date).size().reset_index(name="Submissions")
+            filtered_data["submission_date"] = pd.to_datetime(filtered_data["submission_date"], errors="coerce")
+            line_data = filtered_data.groupby(filtered_data["submission_date"].dt.date).size().reset_index(name="Submissions")
             fig_line = px.line(line_data, x="submission_date", y="Submissions", title="Submissions Over Time")
             st.plotly_chart(fig_line)
         except Exception as e:
@@ -153,10 +182,10 @@ else:
 
     # 3. Pie Chart: Distribution for a selected categorical column
     st.subheader("Pie Chart")
-    categorical_cols = data.select_dtypes(include="object").columns.tolist()
+    categorical_cols = filtered_data.select_dtypes(include="object").columns.tolist()
     if categorical_cols:
         selected_pie = st.selectbox("Select a categorical column for Pie Chart", categorical_cols, key="pie")
-        pie_data = data[selected_pie].value_counts().reset_index()
+        pie_data = filtered_data[selected_pie].value_counts().reset_index()
         pie_data.columns = [selected_pie, "Count"]
         fig_pie = px.pie(pie_data, names=selected_pie, values="Count", title=f"Pie Chart of {selected_pie}")
         st.plotly_chart(fig_pie)
@@ -168,10 +197,10 @@ else:
         selected_hist_y = st.selectbox("Select Y-axis for Histogram (Aggregation)", ["None"] + numeric_cols,
                                        key="hist_y")
         if selected_hist_y == "None":
-            fig_hist = px.histogram(data, x=selected_hist_x, title=f"Histogram of {selected_hist_x}")
+            fig_hist = px.histogram(filtered_data, x=selected_hist_x, title=f"Histogram of {selected_hist_x}")
         else:
             fig_hist = px.histogram(
-                data, x=selected_hist_x, y=selected_hist_y, histfunc="sum",
+                filtered_data, x=selected_hist_x, y=selected_hist_y, histfunc="sum",
                 title=f"Histogram of {selected_hist_x} aggregated by {selected_hist_y}"
             )
         st.plotly_chart(fig_hist)
@@ -181,20 +210,20 @@ else:
     if len(numeric_cols) >= 2:
         scatter_x = st.selectbox("Select X-axis for Scatter Plot", numeric_cols, key="scatter_x")
         scatter_y = st.selectbox("Select Y-axis for Scatter Plot", numeric_cols, key="scatter_y")
-        fig_scatter = px.scatter(data, x=scatter_x, y=scatter_y, title=f"Scatter Plot: {scatter_x} vs {scatter_y}")
+        fig_scatter = px.scatter(filtered_data, x=scatter_x, y=scatter_y, title=f"Scatter Plot: {scatter_x} vs {scatter_y}")
         st.plotly_chart(fig_scatter)
 
     # 6. Box Plot: Distribution summary of a selected numeric column
     st.subheader("Box Plot")
     if numeric_cols:
         selected_box = st.selectbox("Select a numeric column for Box Plot", numeric_cols, key="box")
-        fig_box = px.box(data, y=selected_box, title=f"Box Plot of {selected_box}")
+        fig_box = px.box(filtered_data, y=selected_box, title=f"Box Plot of {selected_box}")
         st.plotly_chart(fig_box)
 
     # 7. Correlation Heatmap: Shows correlations among numeric columns
     st.subheader("Correlation Heatmap")
     if len(numeric_cols) >= 2:
-        corr = data[numeric_cols].corr()
+        corr = filtered_data[numeric_cols].corr()
         fig_heat = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Heatmap")
         st.plotly_chart(fig_heat)
 
@@ -205,12 +234,12 @@ else:
         if categorical_cols:
             group_by = st.selectbox("Group by (optional)", ["None"] + categorical_cols, key="violin_group")
             if group_by == "None":
-                fig_violin = px.violin(data, y=selected_violin, box=True, points="all",
+                fig_violin = px.violin(filtered_data, y=selected_violin, box=True, points="all",
                                        title=f"Violin Plot of {selected_violin}")
             else:
-                fig_violin = px.violin(data, y=selected_violin, color=group_by, box=True, points="all",
+                fig_violin = px.violin(filtered_data, y=selected_violin, color=group_by, box=True, points="all",
                                        title=f"Violin Plot of {selected_violin} grouped by {group_by}")
         else:
-            fig_violin = px.violin(data, y=selected_violin, box=True, points="all",
+            fig_violin = px.violin(filtered_data, y=selected_violin, box=True, points="all",
                                    title=f"Violin Plot of {selected_violin}")
         st.plotly_chart(fig_violin)
