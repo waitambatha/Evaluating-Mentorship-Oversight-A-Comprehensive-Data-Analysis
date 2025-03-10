@@ -101,6 +101,7 @@ else:
     # Summary Table
     st.subheader("Summary")
     numeric_cols = data.select_dtypes(include="number").columns.tolist()
+    categorical_cols = data.select_dtypes(include="object").columns.tolist()
     if numeric_cols:
         summary = data[numeric_cols].describe().T.reset_index().rename(columns={"index": "Column"})
     else:
@@ -112,11 +113,8 @@ else:
 
     # Bar Chart
     st.subheader("Bar Chart")
-    if numeric_cols:
-        selected_bar = st.selectbox("Select a numeric column for Bar Chart", numeric_cols, key="bar")
-        bar_data = data[selected_bar].value_counts().reset_index()
-        bar_data.columns = [selected_bar, "Count"]
-        fig_bar = px.bar(bar_data, x=selected_bar, y="Count", title=f"Bar Chart of {selected_bar}")
+    for col in numeric_cols:
+        fig_bar = px.bar(data, x=col, title=f"Bar Chart of {col}")
         st.plotly_chart(fig_bar)
 
     # Line Chart
@@ -129,10 +127,33 @@ else:
 
     # Pie Chart
     st.subheader("Pie Chart")
-    categorical_cols = data.select_dtypes(include="object").columns.tolist()
-    if categorical_cols:
-        selected_pie = st.selectbox("Select a categorical column for Pie Chart", categorical_cols, key="pie")
-        pie_data = data[selected_pie].value_counts().reset_index()
-        pie_data.columns = [selected_pie, "Count"]
-        fig_pie = px.pie(pie_data, names=selected_pie, values="Count", title=f"Pie Chart of {selected_pie}")
+    for col in categorical_cols:
+        pie_data = data[col].value_counts().reset_index()
+        pie_data.columns = [col, "Count"]
+        fig_pie = px.pie(pie_data, names=col, values="Count", title=f"Pie Chart of {col}")
         st.plotly_chart(fig_pie)
+
+    # Histogram
+    st.subheader("Histogram")
+    for col in numeric_cols:
+        fig_hist = px.histogram(data, x=col, title=f"Histogram of {col}")
+        st.plotly_chart(fig_hist)
+
+    # Box Plot
+    st.subheader("Box Plot")
+    for col in numeric_cols:
+        fig_box = px.box(data, y=col, title=f"Box Plot of {col}")
+        st.plotly_chart(fig_box)
+
+    # Scatter Plot
+    st.subheader("Scatter Plot")
+    if len(numeric_cols) >= 2:
+        fig_scatter = px.scatter(data, x=numeric_cols[0], y=numeric_cols[1], title=f"Scatter Plot: {numeric_cols[0]} vs {numeric_cols[1]}")
+        st.plotly_chart(fig_scatter)
+
+    # Correlation Heatmap
+    st.subheader("Correlation Heatmap")
+    if len(numeric_cols) >= 2:
+        corr = data[numeric_cols].corr()
+        fig_heat = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Heatmap")
+        st.plotly_chart(fig_heat)
