@@ -86,6 +86,28 @@ def load_data():
 # ----------------- Streamlit App Interface -----------------
 st.title("Evaluating Mentorship Oversight: A Comprehensive Data Analysis")
 
+# Summary at the top
+st.header("Summary Overview")
+if data.empty:
+    st.write("No data loaded yet. Please download the latest CSV to see the summary.")
+else:
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Submissions", data.shape[0])
+    with col2:
+        numeric_cols = data.select_dtypes(include="number").columns.tolist()
+        st.metric("Numeric Columns", len(numeric_cols))
+    with col3:
+        categorical_cols = data.select_dtypes(include="object").columns.tolist()
+        st.metric("Categorical Columns", len(categorical_cols))
+    if "submission_date" in data.columns:
+        try:
+            data["submission_date"] = pd.to_datetime(data["submission_date"], errors="coerce")
+            date_range = f"{data['submission_date'].min().date()} to {data['submission_date'].max().date()}"
+            st.write(f"Date Range: {date_range}")
+        except Exception:
+            st.write("Date Range: Not available")
+
 if st.button("Download Latest CSV"):
     download_csv()
 
@@ -100,8 +122,6 @@ else:
 
     # Summary Table
     st.subheader("Summary")
-    numeric_cols = data.select_dtypes(include="number").columns.tolist()
-    categorical_cols = data.select_dtypes(include="object").columns.tolist()
     if numeric_cols:
         summary = data[numeric_cols].describe().T.reset_index().rename(columns={"index": "Column"})
     else:
